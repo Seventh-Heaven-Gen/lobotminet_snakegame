@@ -1,0 +1,871 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>かわいいスネークゲーム</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: "Segoe UI", "Hiragino Sans", "Meiryo", sans-serif;
+      background: linear-gradient(135deg, #fff0f5 0%, #e0f7fa 50%, #f3e5f5 100%);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      color: #5d4e6d;
+      overflow: hidden;
+    }
+
+    h1 {
+      font-size: 2.2rem;
+      margin-bottom: 8px;
+      color: #e91e63;
+      text-shadow: 2px 2px 0 #ffc1e3;
+      letter-spacing: 2px;
+    }
+
+    .subtitle {
+      font-size: 0.95rem;
+      color: #9c7b9c;
+      margin-bottom: 20px;
+    }
+
+    #game-container {
+      position: relative;
+      background: #fff;
+      border-radius: 20px;
+      box-shadow: 0 10px 40px rgba(233, 30, 99, 0.15), 0 0 0 6px #ffe0f0;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    canvas {
+      border-radius: 12px;
+      background: #fffafc;
+      display: block;
+      box-shadow: inset 0 0 20px rgba(0,0,0,0.03);
+    }
+
+    #ui-overlay {
+      position: absolute;
+      top: 16px;
+      left: 16px;
+      right: 16px;
+      bottom: 16px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: rgba(255, 250, 252, 0.95);
+      border-radius: 12px;
+      z-index: 10;
+    }
+
+    #ui-overlay.hidden {
+      display: none;
+    }
+
+    .screen-title {
+      font-size: 1.8rem;
+      color: #e91e63;
+      margin-bottom: 12px;
+    }
+
+    .high-score {
+      font-size: 1.1rem;
+      color: #7b5e7b;
+      margin-bottom: 24px;
+      background: #fff0f7;
+      padding: 8px 20px;
+      border-radius: 30px;
+    }
+
+    .difficulty-buttons {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 28px;
+    }
+
+    .diff-btn {
+      padding: 12px 22px;
+      font-size: 1rem;
+      border: none;
+      border-radius: 30px;
+      cursor: pointer;
+      font-weight: bold;
+      transition: transform 0.15s, box-shadow 0.15s;
+      color: white;
+    }
+
+    .diff-btn:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 6px 16px rgba(0,0,0,0.15);
+    }
+
+    .diff-btn.easy { background: linear-gradient(135deg, #81c784, #66bb6a); }
+    .diff-btn.medium { background: linear-gradient(135deg, #64b5f6, #42a5f5); }
+    .diff-btn.hard { background: linear-gradient(135deg, #e57373, #ef5350); }
+
+    .diff-btn.selected {
+      outline: 3px solid #e91e63;
+      outline-offset: 3px;
+    }
+
+    .main-btn {
+      padding: 14px 48px;
+      font-size: 1.2rem;
+      border: none;
+      border-radius: 40px;
+      background: linear-gradient(135deg, #ec407a, #e91e63);
+      color: white;
+      font-weight: bold;
+      cursor: pointer;
+      transition: transform 0.15s, box-shadow 0.15s;
+      box-shadow: 0 4px 15px rgba(233, 30, 99, 0.35);
+    }
+
+    .main-btn:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 8px 20px rgba(233, 30, 99, 0.45);
+    }
+
+    .score-board {
+      display: flex;
+      gap: 30px;
+      margin-bottom: 12px;
+      font-size: 1.1rem;
+      font-weight: bold;
+    }
+
+    .score-board span {
+      background: #fff0f7;
+      padding: 6px 16px;
+      border-radius: 20px;
+      color: #c2185b;
+    }
+
+    .controls-hint {
+      margin-top: 16px;
+      font-size: 0.85rem;
+      color: #9c7b9c;
+      text-align: center;
+      line-height: 1.6;
+    }
+
+    .skin-name {
+      margin-top: 10px;
+      font-size: 0.9rem;
+      color: #ab47bc;
+      background: #f3e5f5;
+      padding: 4px 14px;
+      border-radius: 20px;
+    }
+
+    #pause-text {
+      font-size: 2rem;
+      color: #e91e63;
+      text-shadow: 2px 2px 0 #ffc1e3;
+    }
+
+    .game-over-score {
+      font-size: 1.4rem;
+      margin: 10px 0 6px;
+      color: #5d4e6d;
+    }
+
+    .new-record {
+      color: #e91e63;
+      font-weight: bold;
+      font-size: 1.1rem;
+      margin-bottom: 16px;
+      animation: bounce 0.6s ease infinite alternate;
+    }
+
+    @keyframes bounce {
+      from { transform: translateY(0); }
+      to { transform: translateY(-4px); }
+    }
+  </style>
+</head>
+<body>
+  <h1>🐍 かわいいスネーク</h1>
+  <p class="subtitle">Bright & Cute Snake Game</p>
+
+  <div id="game-container">
+    <div class="score-board" id="score-board" style="display:none;">
+      <span>スコア: <span id="current-score">0</span></span>
+      <span>ハイスコア: <span id="display-high">0</span></span>
+    </div>
+
+    <canvas id="gameCanvas" width="400" height="400"></canvas>
+
+    <!-- スタート画面 -->
+    <div id="ui-overlay">
+      <div id="start-screen">
+        <div class="screen-title">ゲームスタート</div>
+        <div class="high-score">🏆 ハイスコア: <span id="start-highscore">0</span></div>
+        <div class="difficulty-buttons">
+          <button class="diff-btn easy selected" data-diff="easy">初級</button>
+          <button class="diff-btn medium" data-diff="medium">中級</button>
+          <button class="diff-btn hard" data-diff="hard">上級</button>
+        </div>
+        <button class="main-btn" id="start-btn">スタート！</button>
+        <div class="controls-hint">
+          矢印キーで操作　／　スペースでポーズ<br>
+          スキンは毎回ランダムに選ばれます
+        </div>
+      </div>
+
+      <!-- ポーズ画面 -->
+      <div id="pause-screen" style="display:none;">
+        <div id="pause-text">⏸️ ポーズ中</div>
+        <div class="controls-hint" style="margin-top:20px;">スペースキーで再開</div>
+      </div>
+
+      <!-- ゲームオーバー画面 -->
+      <div id="gameover-screen" style="display:none;">
+        <div class="screen-title">ゲームオーバー</div>
+        <div class="game-over-score">スコア: <span id="final-score">0</span></div>
+        <div class="high-score">ハイスコア: <span id="final-high">0</span></div>
+        <div id="new-record-msg" class="new-record" style="display:none;">🎉 新記録！</div>
+        <button class="main-btn" id="retry-btn">もう一度プレイ</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="skin-name" id="skin-display" style="display:none;"></div>
+
+  <script>
+    // =====================
+    // 定数・設定
+    // =====================
+    const CANVAS_SIZE = 400;
+    const GRID = 20;
+    const CELL = CANVAS_SIZE / GRID; // 20px
+
+    const SPEEDS = {
+      easy: 260,
+      medium: 190,
+      hard: 140
+    };
+
+    const SPEED_STEP = 7;      // 20点ごとに速くなる量(ms)
+    const MIN_SPEED = 75;      // 最速上限
+    const SCORE_PER_FOOD = 10;
+
+    // スキン定義
+    const SKINS = [
+      {
+        id: "tophat",
+        name: "シルクハットスネーク",
+        body: "#4caf50",
+        bodyDark: "#388e3c",
+        head: "#66bb6a",
+        eye: "#212121",
+        accent: "#212121",
+        food: "#ff7043",
+        foodAccent: "#ffcc80"
+      },
+      {
+        id: "skeleton",
+        name: "ボーンスネーク",
+        body: "#f5f5f5",
+        bodyDark: "#e0e0e0",
+        head: "#eeeeee",
+        eye: "#212121",
+        accent: "#9e9e9e",
+        food: "#bdbdbd",
+        foodAccent: "#757575"
+      },
+      {
+        id: "neon",
+        name: "ネオンスネーク",
+        body: "#00e5ff",
+        bodyDark: "#00b8d4",
+        head: "#18ffff",
+        eye: "#f50057",
+        accent: "#ff4081",
+        food: "#ff4081",
+        foodAccent: "#f50057"
+      },
+      {
+        id: "cute",
+        name: "かわいいスネーク",
+        body: "#f48fb1",
+        bodyDark: "#ec407a",
+        head: "#f8bbd0",
+        eye: "#5d4037",
+        accent: "#ff80ab",
+        food: "#ff8a80",
+        foodAccent: "#ff5252"
+      },
+      {
+        id: "fierce",
+        name: "凶暴スネーク",
+        body: "#c62828",
+        bodyDark: "#8e0000",
+        head: "#e53935",
+        eye: "#ffeb3b",
+        accent: "#212121",
+        food: "#ff6f00",
+        foodAccent: "#ffab00"
+      },
+      {
+        id: "scaled",
+        name: "ウロコスネーク",
+        body: "#26a69a",
+        bodyDark: "#00796b",
+        head: "#4db6ac",
+        eye: "#1a237e",
+        accent: "#80cbc4",
+        food: "#81c784",
+        foodAccent: "#a5d6a7"
+      }
+    ];
+
+    // =====================
+    // 状態
+    // =====================
+    let canvas, ctx;
+    let snake = [];
+    let direction = { x: 1, y: 0 };
+    let nextDirection = { x: 1, y: 0 };
+    let food = { x: 0, y: 0 };
+    let score = 0;
+    let highScore = 0;
+    let gameSpeed = 150;
+    let difficulty = "easy";
+    let currentSkin = SKINS[0];
+    let gameState = "start"; // start | playing | paused | gameover
+    let gameLoopId = null;
+    let lastTick = 0;
+
+    // =====================
+    // 初期化
+    // =====================
+    function init() {
+      canvas = document.getElementById("gameCanvas");
+      ctx = canvas.getContext("2d");
+
+      highScore = parseInt(localStorage.getItem("snakeHighScore") || "0", 10);
+      document.getElementById("start-highscore").textContent = highScore;
+      document.getElementById("display-high").textContent = highScore;
+
+      // 難易度ボタン
+      document.querySelectorAll(".diff-btn").forEach(btn => {
+        btn.addEventListener("click", () => {
+          document.querySelectorAll(".diff-btn").forEach(b => b.classList.remove("selected"));
+          btn.classList.add("selected");
+          difficulty = btn.dataset.diff;
+        });
+      });
+
+      document.getElementById("start-btn").addEventListener("click", startGame);
+      document.getElementById("retry-btn").addEventListener("click", () => {
+        showStartScreen();
+      });
+
+      document.addEventListener("keydown", handleKeyDown);
+
+      drawStartBackground();
+    }
+
+    // =====================
+    // 画面切り替え
+    // =====================
+    function showStartScreen() {
+      gameState = "start";
+      stopLoop();
+      document.getElementById("ui-overlay").classList.remove("hidden");
+      document.getElementById("start-screen").style.display = "block";
+      document.getElementById("pause-screen").style.display = "none";
+      document.getElementById("gameover-screen").style.display = "none";
+      document.getElementById("score-board").style.display = "none";
+      document.getElementById("skin-display").style.display = "none";
+      document.getElementById("start-highscore").textContent = highScore;
+      drawStartBackground();
+    }
+
+    function showPauseScreen() {
+      document.getElementById("ui-overlay").classList.remove("hidden");
+      document.getElementById("start-screen").style.display = "none";
+      document.getElementById("pause-screen").style.display = "block";
+      document.getElementById("gameover-screen").style.display = "none";
+    }
+
+    function hideOverlay() {
+      document.getElementById("ui-overlay").classList.add("hidden");
+    }
+
+    function showGameOver() {
+      gameState = "gameover";
+      stopLoop();
+
+      const isNew = score > highScore;
+      if (isNew) {
+        highScore = score;
+        localStorage.setItem("snakeHighScore", highScore);
+        document.getElementById("new-record-msg").style.display = "block";
+      } else {
+        document.getElementById("new-record-msg").style.display = "none";
+      }
+
+      document.getElementById("final-score").textContent = score;
+      document.getElementById("final-high").textContent = highScore;
+      document.getElementById("display-high").textContent = highScore;
+
+      document.getElementById("ui-overlay").classList.remove("hidden");
+      document.getElementById("start-screen").style.display = "none";
+      document.getElementById("pause-screen").style.display = "none";
+      document.getElementById("gameover-screen").style.display = "block";
+    }
+
+    // =====================
+    // ゲーム開始
+    // =====================
+    function startGame() {
+      // スキンをランダム選択
+      currentSkin = SKINS[Math.floor(Math.random() * SKINS.length)];
+      document.getElementById("skin-display").textContent = "✨ " + currentSkin.name;
+      document.getElementById("skin-display").style.display = "block";
+
+      // 初期化
+      snake = [
+        { x: 8, y: 10 },
+        { x: 7, y: 10 },
+        { x: 6, y: 10 }
+      ];
+      direction = { x: 1, y: 0 };
+      nextDirection = { x: 1, y: 0 };
+      score = 0;
+      gameSpeed = SPEEDS[difficulty];
+      placeFood();
+
+      document.getElementById("current-score").textContent = "0";
+      document.getElementById("score-board").style.display = "flex";
+      hideOverlay();
+      gameState = "playing";
+      lastTick = performance.now();
+      requestAnimationFrame(loop);
+    }
+
+    // =====================
+    // メインループ
+    // =====================
+    function loop(timestamp) {
+      if (gameState !== "playing") return;
+
+      if (timestamp - lastTick >= gameSpeed) {
+        update();
+        lastTick = timestamp;
+      }
+      draw();
+      gameLoopId = requestAnimationFrame(loop);
+    }
+
+    function stopLoop() {
+      if (gameLoopId) {
+        cancelAnimationFrame(gameLoopId);
+        gameLoopId = null;
+      }
+    }
+
+    // =====================
+    // 更新処理
+    // =====================
+    function update() {
+      direction = { ...nextDirection };
+
+      const head = {
+        x: snake[0].x + direction.x,
+        y: snake[0].y + direction.y
+      };
+
+      // 壁衝突
+      if (head.x < 0 || head.x >= GRID || head.y < 0 || head.y >= GRID) {
+        showGameOver();
+        return;
+      }
+
+      // 自己衝突
+      for (let i = 0; i < snake.length; i++) {
+        if (snake[i].x === head.x && snake[i].y === head.y) {
+          showGameOver();
+          return;
+        }
+      }
+
+      snake.unshift(head);
+
+      // 餌判定
+      if (head.x === food.x && head.y === food.y) {
+        score += SCORE_PER_FOOD;
+        document.getElementById("current-score").textContent = score;
+        playMunchSound();
+        placeFood();
+
+        // 20点ごとに速度アップ
+        if (score % 20 === 0) {
+          gameSpeed = Math.max(MIN_SPEED, gameSpeed - SPEED_STEP);
+        }
+      } else {
+        snake.pop();
+      }
+    }
+
+    function placeFood() {
+      let valid = false;
+      while (!valid) {
+        food.x = Math.floor(Math.random() * GRID);
+        food.y = Math.floor(Math.random() * GRID);
+        valid = !snake.some(s => s.x === food.x && s.y === food.y);
+      }
+    }
+
+    // =====================
+    // 描画
+    // =====================
+    function draw() {
+      // 背景
+      ctx.fillStyle = "#fffafc";
+      ctx.fillRect(0, 0, CANVAS_SIZE, CANVAS_SIZE);
+
+      // 薄いグリッド
+      ctx.strokeStyle = "rgba(233, 30, 99, 0.06)";
+      ctx.lineWidth = 1;
+      for (let i = 0; i <= GRID; i++) {
+        ctx.beginPath();
+        ctx.moveTo(i * CELL, 0);
+        ctx.lineTo(i * CELL, CANVAS_SIZE);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(0, i * CELL);
+        ctx.lineTo(CANVAS_SIZE, i * CELL);
+        ctx.stroke();
+      }
+
+      // 餌
+      drawFood();
+
+      // 蛇
+      for (let i = snake.length - 1; i >= 0; i--) {
+        drawSnakeSegment(snake[i], i === 0, i);
+      }
+    }
+
+    function drawFood() {
+      const x = food.x * CELL;
+      const y = food.y * CELL;
+      const cx = x + CELL / 2;
+      const cy = y + CELL / 2;
+      const r = CELL * 0.35;
+
+      ctx.save();
+
+      if (currentSkin.id === "tophat") {
+        // リンゴ風
+        ctx.fillStyle = currentSkin.food;
+        ctx.beginPath();
+        ctx.arc(cx, cy + 1, r, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = "#5d4037";
+        ctx.fillRect(cx - 1.5, y + 3, 3, 5);
+        ctx.fillStyle = "#81c784";
+        ctx.beginPath();
+        ctx.ellipse(cx + 4, y + 6, 5, 3, 0.5, 0, Math.PI * 2);
+        ctx.fill();
+      } else if (currentSkin.id === "skeleton") {
+        // 骨っぽい
+        ctx.fillStyle = currentSkin.food;
+        ctx.beginPath();
+        ctx.arc(cx - 4, cy, 5, 0, Math.PI * 2);
+        ctx.arc(cx + 4, cy, 5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillRect(cx - 3, cy - 2, 6, 4);
+      } else if (currentSkin.id === "neon") {
+        // 光るオーブ
+        const grad = ctx.createRadialGradient(cx, cy, 2, cx, cy, r + 4);
+        grad.addColorStop(0, "#ffffff");
+        grad.addColorStop(0.4, currentSkin.food);
+        grad.addColorStop(1, "rgba(255,64,129,0)");
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.arc(cx, cy, r + 4, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = currentSkin.food;
+        ctx.beginPath();
+        ctx.arc(cx, cy, r * 0.7, 0, Math.PI * 2);
+        ctx.fill();
+      } else if (currentSkin.id === "cute") {
+        // ハート
+        ctx.fillStyle = currentSkin.food;
+        ctx.beginPath();
+        const s = 0.55;
+        ctx.moveTo(cx, cy + 6 * s);
+        ctx.bezierCurveTo(cx, cy + 2 * s, cx - 10 * s, cy - 4 * s, cx - 10 * s, cy - 8 * s);
+        ctx.bezierCurveTo(cx - 10 * s, cy - 14 * s, cx, cy - 12 * s, cx, cy - 6 * s);
+        ctx.bezierCurveTo(cx, cy - 12 * s, cx + 10 * s, cy - 14 * s, cx + 10 * s, cy - 8 * s);
+        ctx.bezierCurveTo(cx + 10 * s, cy - 4 * s, cx, cy + 2 * s, cx, cy + 6 * s);
+        ctx.fill();
+      } else if (currentSkin.id === "fierce") {
+        // 肉っぽい
+        ctx.fillStyle = currentSkin.food;
+        ctx.beginPath();
+        ctx.ellipse(cx, cy, r + 1, r - 1, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = currentSkin.foodAccent;
+        ctx.beginPath();
+        ctx.ellipse(cx - 2, cy - 2, 4, 3, 0, 0, Math.PI * 2);
+        ctx.fill();
+      } else {
+        // ウロコ用：葉っぱ風
+        ctx.fillStyle = currentSkin.food;
+        ctx.beginPath();
+        ctx.ellipse(cx, cy, r, r * 0.7, -0.4, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = currentSkin.foodAccent;
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(cx - 2, cy + 4);
+        ctx.quadraticCurveTo(cx, cy, cx + 3, cy - 5);
+        ctx.stroke();
+      }
+
+      ctx.restore();
+    }
+
+    function drawSnakeSegment(seg, isHead, index) {
+      const x = seg.x * CELL;
+      const y = seg.y * CELL;
+      const pad = 1.5;
+      const radius = 6;
+
+      ctx.save();
+
+      // 体の色（頭とそれ以外で少し変える）
+      if (isHead) {
+        ctx.fillStyle = currentSkin.head;
+      } else {
+        // ウロコ模様っぽく交互に
+        ctx.fillStyle = (index % 2 === 0) ? currentSkin.body : currentSkin.bodyDark;
+      }
+
+      roundRect(ctx, x + pad, y + pad, CELL - pad * 2, CELL - pad * 2, radius);
+      ctx.fill();
+
+      // スキンごとの追加装飾
+      if (isHead) {
+        drawHeadDetails(x, y);
+      } else if (currentSkin.id === "scaled" && index % 2 === 0) {
+        // ウロコ模様
+        ctx.fillStyle = currentSkin.accent;
+        ctx.globalAlpha = 0.4;
+        ctx.beginPath();
+        ctx.arc(x + CELL / 2, y + CELL / 2, 3.5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.globalAlpha = 1;
+      } else if (currentSkin.id === "skeleton") {
+        // 骨のつなぎ目
+        ctx.strokeStyle = currentSkin.accent;
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(x + 5, y + CELL / 2);
+        ctx.lineTo(x + CELL - 5, y + CELL / 2);
+        ctx.stroke();
+      } else if (currentSkin.id === "neon") {
+        // ネオンの輝き
+        ctx.strokeStyle = "rgba(255,255,255,0.5)";
+        ctx.lineWidth = 2;
+        roundRect(ctx, x + pad + 1, y + pad + 1, CELL - pad * 2 - 2, CELL - pad * 2 - 2, radius - 1);
+        ctx.stroke();
+      }
+
+      ctx.restore();
+    }
+
+    function drawHeadDetails(x, y) {
+      const cx = x + CELL / 2;
+      const cy = y + CELL / 2;
+
+      // 目
+      ctx.fillStyle = currentSkin.eye;
+      const eyeOffsetX = direction.x !== 0 ? direction.x * 3 : 0;
+      const eyeOffsetY = direction.y !== 0 ? direction.y * 3 : 0;
+
+      if (currentSkin.id === "cute") {
+        // 大きなかわいい目
+        ctx.fillStyle = "#fff";
+        ctx.beginPath();
+        ctx.arc(cx - 4 + eyeOffsetX, cy - 2 + eyeOffsetY, 4.5, 0, Math.PI * 2);
+        ctx.arc(cx + 4 + eyeOffsetX, cy - 2 + eyeOffsetY, 4.5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = currentSkin.eye;
+        ctx.beginPath();
+        ctx.arc(cx - 4 + eyeOffsetX, cy - 2 + eyeOffsetY, 2.5, 0, Math.PI * 2);
+        ctx.arc(cx + 4 + eyeOffsetX, cy - 2 + eyeOffsetY, 2.5, 0, Math.PI * 2);
+        ctx.fill();
+        // ほっぺ
+        ctx.fillStyle = "rgba(255, 128, 171, 0.5)";
+        ctx.beginPath();
+        ctx.arc(cx - 7, cy + 4, 3, 0, Math.PI * 2);
+        ctx.arc(cx + 7, cy + 4, 3, 0, Math.PI * 2);
+        ctx.fill();
+      } else if (currentSkin.id === "fierce") {
+        // 鋭い目
+        ctx.fillStyle = currentSkin.eye;
+        ctx.beginPath();
+        ctx.moveTo(cx - 6 + eyeOffsetX, cy - 3 + eyeOffsetY);
+        ctx.lineTo(cx - 1 + eyeOffsetX, cy + 1 + eyeOffsetY);
+        ctx.lineTo(cx - 6 + eyeOffsetX, cy + 2 + eyeOffsetY);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.moveTo(cx + 6 + eyeOffsetX, cy - 3 + eyeOffsetY);
+        ctx.lineTo(cx + 1 + eyeOffsetX, cy + 1 + eyeOffsetY);
+        ctx.lineTo(cx + 6 + eyeOffsetX, cy + 2 + eyeOffsetY);
+        ctx.fill();
+      } else {
+        // 普通の目
+        ctx.beginPath();
+        ctx.arc(cx - 3.5 + eyeOffsetX, cy - 2 + eyeOffsetY, 2.2, 0, Math.PI * 2);
+        ctx.arc(cx + 3.5 + eyeOffsetX, cy - 2 + eyeOffsetY, 2.2, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // シルクハット
+      if (currentSkin.id === "tophat") {
+        ctx.fillStyle = "#212121";
+        ctx.fillRect(cx - 7, y - 2, 14, 5);
+        ctx.fillRect(cx - 5, y - 12, 10, 11);
+        ctx.fillStyle = "#f5f5f5";
+        ctx.fillRect(cx - 5, y - 5, 10, 2.5);
+      }
+
+      // ネオングロー
+      if (currentSkin.id === "neon") {
+        ctx.strokeStyle = "rgba(0, 229, 255, 0.6)";
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.arc(cx, cy, 9, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+    }
+
+    function roundRect(ctx, x, y, w, h, r) {
+      ctx.beginPath();
+      ctx.moveTo(x + r, y);
+      ctx.lineTo(x + w - r, y);
+      ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+      ctx.lineTo(x + w, y + h - r);
+      ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+      ctx.lineTo(x + r, y + h);
+      ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+      ctx.lineTo(x, y + r);
+      ctx.quadraticCurveTo(x, y, x + r, y);
+      ctx.closePath();
+    }
+
+    function drawStartBackground() {
+      ctx.fillStyle = "#fffafc";
+      ctx.fillRect(0, 0, CANVAS_SIZE, CANVAS_SIZE);
+      // かわいい装飾
+      ctx.fillStyle = "rgba(233, 30, 99, 0.08)";
+      for (let i = 0; i < 12; i++) {
+        const x = (i * 67 + 30) % CANVAS_SIZE;
+        const y = (i * 97 + 50) % CANVAS_SIZE;
+        ctx.beginPath();
+        ctx.arc(x, y, 8 + (i % 3) * 4, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
+    // =====================
+    // キー入力
+    // =====================
+    function handleKeyDown(e) {
+      if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", " "].includes(e.key)) {
+        e.preventDefault();
+      }
+
+      if (e.key === " ") {
+        if (gameState === "playing") {
+          gameState = "paused";
+          stopLoop();
+          showPauseScreen();
+        } else if (gameState === "paused") {
+          gameState = "playing";
+          hideOverlay();
+          lastTick = performance.now();
+          requestAnimationFrame(loop);
+        }
+        return;
+      }
+
+      if (gameState !== "playing") return;
+
+      const keyMap = {
+        ArrowUp: { x: 0, y: -1 },
+        ArrowDown: { x: 0, y: 1 },
+        ArrowLeft: { x: -1, y: 0 },
+        ArrowRight: { x: 1, y: 0 }
+      };
+
+      const newDir = keyMap[e.key];
+      if (!newDir) return;
+
+      // 逆方向は禁止
+      if (newDir.x + direction.x === 0 && newDir.y + direction.y === 0) return;
+
+      nextDirection = newDir;
+    }
+
+    // =====================
+    // 効果音（ムシャムシャ）
+    // =====================
+    function playMunchSound() {
+      try {
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        const audioCtx = new AudioContext();
+
+        // 短いノイズ＋低音でムシャッとさせる
+        const duration = 0.12;
+        const bufferSize = audioCtx.sampleRate * duration;
+        const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+        const data = buffer.getChannelData(0);
+
+        for (let i = 0; i < bufferSize; i++) {
+          const t = i / audioCtx.sampleRate;
+          // ノイズを減衰させつつ低めのトーンを混ぜる
+          const noise = (Math.random() * 2 - 1) * Math.exp(-t * 18);
+          const tone = Math.sin(2 * Math.PI * 180 * t) * Math.exp(-t * 12) * 0.4;
+          data[i] = (noise * 0.6 + tone) * 0.35;
+        }
+
+        const source = audioCtx.createBufferSource();
+        source.buffer = buffer;
+
+        const filter = audioCtx.createBiquadFilter();
+        filter.type = "lowpass";
+        filter.frequency.value = 800;
+
+        source.connect(filter);
+        filter.connect(audioCtx.destination);
+        source.start();
+      } catch (err) {
+        // 音声が使えない環境では無視
+      }
+    }
+
+    // 起動
+    init();
+  </script>
+</body>
+</html>
